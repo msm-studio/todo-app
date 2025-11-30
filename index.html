@@ -300,12 +300,26 @@
             cursor: grabbing;
         }
 
-        .task-item.drag-placeholder {
-            opacity: 0;
-            height: 0;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
+        .task-item.drag-over-before::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            border-radius: 2px;
+        }
+
+        .light .task-item.drag-over-before::before {
+            background: #667eea;
+        }
+
+        .dark .task-item.drag-over-before::before {
+            background: #1abc9c;
+        }
+
+        .ocean .task-item.drag-over-before::before {
+            background: #0083B0;
         }
 
         @keyframes slideIn {
@@ -1066,6 +1080,7 @@
 
         let draggedElement = null;
         let draggedTaskId = null;
+        let dropTarget = null;
 
         function addDragListeners() {
             const taskItems = document.querySelectorAll('.task-item');
@@ -1073,6 +1088,8 @@
             taskItems.forEach(item => {
                 item.addEventListener('dragstart', handleDragStart);
                 item.addEventListener('dragover', handleDragOver);
+                item.addEventListener('dragleave', handleDragLeave);
+                item.addEventListener('drop', handleDrop);
                 item.addEventListener('dragend', handleDragEnd);
 
                 // Prevent text selection and context menu on mobile
@@ -1090,10 +1107,7 @@
             document.body.classList.add('is-dragging');
 
             e.dataTransfer.effectAllowed = 'move';
-            // Use a custom data type to prevent browser from treating this as text
             e.dataTransfer.setData('application/x-todo-item', draggedTaskId);
-
-            // Prevent text selection during drag
             e.dataTransfer.setDragImage(this, 0, 0);
         }
 
@@ -1101,61 +1115,61 @@
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
 
-            const afterElement = getDragAfterElement(e.clientY);
-            const tasksList = document.getElementById('tasksList');
+            if (this === draggedElement) return;
 
-            if (afterElement == null) {
-                tasksList.appendChild(draggedElement);
-            } else {
-                tasksList.insertBefore(draggedElement, afterElement);
-            }
+            // Remove previous indicators
+            document.querySelectorAll('.task-item').forEach(item => {
+                item.classList.remove('drag-over-before');
+            });
+
+            // Add indicator to show where it will drop
+            this.classList.add('drag-over-before');
+            dropTarget = this;
 
             return false;
         }
 
-        function getDragAfterElement(y) {
-            const tasksList = document.getElementById('tasksList');
-            const draggableElements = [...tasksList.querySelectorAll('.task-item:not(.dragging)')];
+        function handleDragLeave(e) {
+            if (e.target === this) {
+                this.classList.remove('drag-over-before');
+            }
+        }
 
-            return draggableElements.reduce((closest, child) => {
-                const box = child.getBoundingClientRect();
-                const offset = y - box.top - box.height / 2;
-
-                if (offset < 0 && offset > closest.offset) {
-                    return { offset: offset, element: child };
-                } else {
-                    return closest;
-                }
-            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
         }
 
         async function handleDragEnd(e) {
-            // Update the tasks array to match the new DOM order
-            const tasksList = document.getElementById('tasksList');
-            const taskItems = [...tasksList.querySelectorAll('.task-item')];
+            // Remove all drag classes
+            document.querySelectorAll('.task-item').forEach(item => {
+                item.classList.remove('dragging', 'drag-over-before');
+            });
 
-            // Reorder tasks array based on DOM order
-            const newTasksOrder = taskItems.map(item => {
-                const taskId = item.dataset.id;
-                return tasks.find(t => t.id === taskId);
-            }).filter(task => task && task.bucket === currentBucket);
+            // Re-enable hover effects
+            document.body.classList.remove('is-dragging');
 
-            // Update the full tasks array
-            const otherBucketTasks = tasks.filter(task => task.bucket !== currentBucket);
-            tasks = [...newTasksOrder, ...otherBucketTasks];
+            // If there's a valid drop target, reorder the tasks
+            if (dropTarget && dropTarget !== draggedElement) {
+                const draggedIndex = tasks.findIndex(t => t.id === draggedTaskId);
+                const dropIndex = tasks.findIndex(t => t.id === dropTarget.dataset.id);
 
-            await saveTaskOrder();
+                if (draggedIndex !== -1 && dropIndex !== -1) {
+                    // Remove from old position
+                    const [draggedTask] = tasks.splice(draggedIndex, 1);
 
-            // Re-enable hover effects after a short delay
-            setTimeout(() => {
-                document.body.classList.remove('is-dragging');
-            }, 50);
+                    // Insert at new position
+                    tasks.splice(dropIndex, 0, draggedTask);
 
-            // Re-render to clean up any lingering styles/classes
-            renderTasks();
+                    await saveTaskOrder();
+                    renderTasks();
+                }
+            }
 
             draggedElement = null;
             draggedTaskId = null;
+            dropTarget = null;
         }
 
         function switchBucket(bucket) {
