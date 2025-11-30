@@ -379,15 +379,41 @@
         /* Header with preferences button */
         .header {
             display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .header-top {
+            display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
         }
 
         .header h1 {
             margin: 0;
-            flex: 1;
-            text-align: center;
+            font-size: 2.2em;
+            font-weight: 700;
+            background: linear-gradient(135deg, currentColor 0%, currentColor 100%);
+            background-clip: text;
+        }
+
+        @media (min-width: 768px) {
+            .header {
+                flex-direction: row;
+                align-items: center;
+                gap: 0;
+            }
+
+            .header-top {
+                flex: 1;
+                justify-content: flex-end;
+            }
+
+            .header h1 {
+                flex: 1;
+                text-align: center;
+            }
         }
 
         .preferences-btn {
@@ -650,35 +676,79 @@
         .user-info {
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-size: 0.9em;
-            opacity: 0.8;
+            gap: 12px;
+            font-size: 0.85em;
+            padding: 8px 14px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            font-weight: 500;
+        }
+
+        .light .user-info {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .dark .user-info {
+            background: rgba(26, 188, 156, 0.1);
+            border: 1px solid rgba(26, 188, 156, 0.2);
+        }
+
+        .ocean .user-info {
+            background: rgba(0, 131, 176, 0.1);
+            border: 1px solid rgba(0, 131, 176, 0.2);
+        }
+
+        .user-email {
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        @media (min-width: 768px) {
+            .user-email {
+                max-width: none;
+            }
         }
 
         .logout-btn {
             background: none;
             border: none;
             cursor: pointer;
-            font-size: 0.9em;
-            text-decoration: underline;
-            opacity: 0.8;
-            transition: opacity 0.3s ease;
+            font-size: 0.85em;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
         }
 
         .logout-btn:hover {
-            opacity: 1;
+            transform: translateY(-1px);
         }
 
         .light .logout-btn {
-            color: #333;
+            color: #667eea;
+        }
+
+        .light .logout-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
         }
 
         .dark .logout-btn {
-            color: #ecf0f1;
+            color: #1abc9c;
+        }
+
+        .dark .logout-btn:hover {
+            background: rgba(26, 188, 156, 0.1);
         }
 
         .ocean .logout-btn {
-            color: #0d4f6e;
+            color: #0083B0;
+        }
+
+        .ocean .logout-btn:hover {
+            background: rgba(0, 131, 176, 0.1);
         }
     </style>
 </head>
@@ -713,9 +783,11 @@
     <!-- Main App -->
     <div class="container hidden" id="appContainer">
         <div class="header">
-            <div class="user-info" id="userInfo"></div>
             <h1>My To-Do List</h1>
-            <button class="preferences-btn" onclick="openPreferences()">⚙</button>
+            <div class="header-top">
+                <div class="user-info" id="userInfo"></div>
+                <button class="preferences-btn" onclick="openPreferences()">⚙</button>
+            </div>
         </div>
 
         <div class="bucket-tabs">
@@ -795,7 +867,7 @@
 
             if (currentUser) {
                 document.getElementById('userInfo').innerHTML = `
-                    <span>${currentUser.email}</span>
+                    <span class="user-email">${currentUser.email}</span>
                     <button class="logout-btn" onclick="handleLogout()">Logout</button>
                 `;
             }
