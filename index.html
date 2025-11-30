@@ -284,76 +284,23 @@
             padding: 15px;
             margin-bottom: 10px;
             border-radius: 8px;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             animation: slideIn 0.3s ease;
             cursor: move;
+            position: relative;
         }
 
         .task-item.dragging {
-            opacity: 0.4;
-            transform: rotate(2deg) scale(1.02);
-            cursor: grabbing;
-            z-index: 1000;
-        }
-
-        .task-item.drag-over-top {
-            border-top: 3px solid;
-            padding-top: 12px;
-            transition: all 0.2s ease;
-        }
-
-        .light .task-item.drag-over-top {
-            border-top-color: #667eea;
-        }
-
-        .dark .task-item.drag-over-top {
-            border-top-color: #1abc9c;
-        }
-
-        .ocean .task-item.drag-over-top {
-            border-top-color: #0083B0;
-        }
-
-        .task-item.drag-over-bottom {
-            border-bottom: 3px solid;
-            padding-bottom: 12px;
-            transition: all 0.2s ease;
-        }
-
-        .light .task-item.drag-over-bottom {
-            border-bottom-color: #667eea;
-        }
-
-        .dark .task-item.drag-over-bottom {
-            border-bottom-color: #1abc9c;
-        }
-
-        .ocean .task-item.drag-over-bottom {
-            border-bottom-color: #0083B0;
-        }
-
-        .task-placeholder {
-            height: 60px;
-            border: 2px dashed;
-            border-radius: 8px;
-            margin-bottom: 10px;
             opacity: 0.5;
-            transition: all 0.2s ease;
+            cursor: grabbing;
         }
 
-        .light .task-placeholder {
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.1);
-        }
-
-        .dark .task-placeholder {
-            border-color: #1abc9c;
-            background: rgba(26, 188, 156, 0.1);
-        }
-
-        .ocean .task-placeholder {
-            border-color: #0083B0;
-            background: rgba(0, 131, 176, 0.1);
+        .task-item.drag-placeholder {
+            opacity: 0;
+            height: 0;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
         }
 
         @keyframes slideIn {
@@ -1109,7 +1056,6 @@
 
         let draggedElement = null;
         let draggedTaskId = null;
-        let placeholder = null;
 
         function addDragListeners() {
             const taskItems = document.querySelectorAll('.task-item');
@@ -1117,9 +1063,6 @@
             taskItems.forEach(item => {
                 item.addEventListener('dragstart', handleDragStart);
                 item.addEventListener('dragover', handleDragOver);
-                item.addEventListener('dragenter', handleDragEnter);
-                item.addEventListener('dragleave', handleDragLeave);
-                item.addEventListener('drop', handleDrop);
                 item.addEventListener('dragend', handleDragEnd);
             });
         }
@@ -1127,103 +1070,62 @@
         function handleDragStart(e) {
             draggedElement = this;
             draggedTaskId = this.dataset.id;
-
-            setTimeout(() => {
-                this.classList.add('dragging');
-            }, 0);
+            this.classList.add('dragging');
 
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/html', this.innerHTML);
         }
 
-        function handleDragEnter(e) {
-            if (this === draggedElement) return;
-
-            e.preventDefault();
-        }
-
         function handleDragOver(e) {
-            if (e.preventDefault) {
-                e.preventDefault();
-            }
-
+            e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
 
-            if (this === draggedElement) return false;
+            const afterElement = getDragAfterElement(e.clientY);
+            const tasksList = document.getElementById('tasksList');
 
-            // Get all task items
-            const allItems = [...document.querySelectorAll('.task-item')];
-            const draggedIndex = allItems.indexOf(draggedElement);
-            const targetIndex = allItems.indexOf(this);
-
-            // Remove previous drag-over classes
-            allItems.forEach(item => {
-                item.classList.remove('drag-over-top', 'drag-over-bottom');
-            });
-
-            // Determine if we should insert above or below
-            if (draggedIndex < targetIndex) {
-                // Dragging down - show indicator below target
-                this.classList.add('drag-over-bottom');
+            if (afterElement == null) {
+                tasksList.appendChild(draggedElement);
             } else {
-                // Dragging up - show indicator above target
-                this.classList.add('drag-over-top');
+                tasksList.insertBefore(draggedElement, afterElement);
             }
 
             return false;
         }
 
-        function handleDragLeave(e) {
-            // Only remove if we're actually leaving the element
-            if (e.target === this) {
-                this.classList.remove('drag-over-top', 'drag-over-bottom');
-            }
+        function getDragAfterElement(y) {
+            const tasksList = document.getElementById('tasksList');
+            const draggableElements = [...tasksList.querySelectorAll('.task-item:not(.dragging)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
         }
 
-        async function handleDrop(e) {
-            if (e.stopPropagation) {
-                e.stopPropagation();
-            }
-            e.preventDefault();
+        async function handleDragEnd(e) {
+            draggedElement.classList.remove('dragging');
 
-            if (draggedElement === this) return false;
+            // Update the tasks array to match the new DOM order
+            const tasksList = document.getElementById('tasksList');
+            const taskItems = [...tasksList.querySelectorAll('.task-item')];
 
-            const dropTaskId = this.dataset.id;
-            const allItems = [...document.querySelectorAll('.task-item')];
-            const draggedIndex = allItems.indexOf(draggedElement);
-            const targetIndex = allItems.indexOf(this);
+            // Reorder tasks array based on DOM order
+            const newTasksOrder = taskItems.map(item => {
+                const taskId = item.dataset.id;
+                return tasks.find(t => t.id === taskId);
+            }).filter(task => task && task.bucket === currentBucket);
 
-            // Find the indices in the main tasks array
-            const draggedTaskIndex = tasks.findIndex(t => t.id === draggedTaskId);
-            const dropTaskIndex = tasks.findIndex(t => t.id === dropTaskId);
-
-            // Reorder the tasks array
-            const draggedTask = tasks[draggedTaskIndex];
-            tasks.splice(draggedTaskIndex, 1);
-
-            // Insert based on drag direction
-            let insertIndex = dropTaskIndex;
-            if (draggedIndex < targetIndex) {
-                // Dragging down - insert after target
-                insertIndex = dropTaskIndex;
-            } else {
-                // Dragging up - insert before target
-                insertIndex = dropTaskIndex;
-            }
-
-            tasks.splice(insertIndex, 0, draggedTask);
+            // Update the full tasks array
+            const otherBucketTasks = tasks.filter(task => task.bucket !== currentBucket);
+            tasks = [...newTasksOrder, ...otherBucketTasks];
 
             await saveTaskOrder();
-            renderTasks();
-
-            return false;
-        }
-
-        function handleDragEnd(e) {
-            const items = document.querySelectorAll('.task-item');
-            items.forEach(item => {
-                item.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom');
-            });
 
             draggedElement = null;
             draggedTaskId = null;
