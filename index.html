@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>To-Do List App</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -522,12 +523,197 @@
             margin-bottom: 15px;
             opacity: 0.8;
         }
+
+        /* Auth screen */
+        .auth-container {
+            width: 90%;
+            max-width: 400px;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .light .auth-container {
+            background: white;
+            color: #333;
+        }
+
+        .dark .auth-container {
+            background: #2c3e50;
+            color: #ecf0f1;
+        }
+
+        .ocean .auth-container {
+            background: #e8f4f8;
+            color: #0d4f6e;
+        }
+
+        .auth-container h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .auth-form input {
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-size: 1em;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .light .auth-form input {
+            border: 2px solid #e0e0e0;
+            color: #333;
+        }
+
+        .dark .auth-form input {
+            border: 2px solid #34495e;
+            background: #34495e;
+            color: #ecf0f1;
+        }
+
+        .ocean .auth-form input {
+            border: 2px solid #b3dce8;
+            color: #0d4f6e;
+        }
+
+        .auth-btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1em;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .light .auth-btn {
+            background: #667eea;
+        }
+
+        .light .auth-btn:hover {
+            background: #5568d3;
+        }
+
+        .dark .auth-btn {
+            background: #1abc9c;
+        }
+
+        .dark .auth-btn:hover {
+            background: #16a085;
+        }
+
+        .ocean .auth-btn {
+            background: #0083B0;
+        }
+
+        .ocean .auth-btn:hover {
+            background: #006d94;
+        }
+
+        .auth-toggle {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+
+        .auth-toggle a {
+            color: inherit;
+            text-decoration: underline;
+            cursor: pointer;
+            opacity: 0.8;
+        }
+
+        .auth-toggle a:hover {
+            opacity: 1;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 0.9em;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .logout-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9em;
+            text-decoration: underline;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            opacity: 1;
+        }
+
+        .light .logout-btn {
+            color: #333;
+        }
+
+        .dark .logout-btn {
+            color: #ecf0f1;
+        }
+
+        .ocean .logout-btn {
+            color: #0d4f6e;
+        }
     </style>
 </head>
 <body class="ocean">
-    <div class="container">
+    <!-- Auth Screen -->
+    <div class="auth-container" id="authContainer">
+        <h1>To-Do List</h1>
+        <div id="loginForm">
+            <form class="auth-form" onsubmit="handleLogin(event)">
+                <input type="email" id="loginEmail" placeholder="Email" required>
+                <input type="password" id="loginPassword" placeholder="Password" required>
+                <button type="submit" class="auth-btn">Log In</button>
+            </form>
+            <div class="auth-toggle">
+                Don't have an account? <a onclick="showSignup()">Sign up</a>
+            </div>
+            <div id="loginError" class="error-message"></div>
+        </div>
+        <div id="signupForm" class="hidden">
+            <form class="auth-form" onsubmit="handleSignup(event)">
+                <input type="email" id="signupEmail" placeholder="Email" required>
+                <input type="password" id="signupPassword" placeholder="Password (min 6 characters)" required minlength="6">
+                <button type="submit" class="auth-btn">Sign Up</button>
+            </form>
+            <div class="auth-toggle">
+                Already have an account? <a onclick="showLogin()">Log in</a>
+            </div>
+            <div id="signupError" class="error-message"></div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div class="container hidden" id="appContainer">
         <div class="header">
-            <div style="width: 30px;"></div>
+            <div class="user-info" id="userInfo"></div>
             <h1>My To-Do List</h1>
             <button class="preferences-btn" onclick="openPreferences()">⚙</button>
         </div>
@@ -568,26 +754,113 @@
     </div>
 
     <script>
+        // Initialize Supabase
+        const SUPABASE_URL = 'https://fnfvvclbmussntkmoqqd.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuZnZ2Y2xibXVzc250a21vcXFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQzNjc0MjIsImV4cCI6MjA3OTk0MzQyMn0.t6ycyzqm2VkuR289omkVSZ2nhghKfHM8FOlSapIxouo';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         let tasks = [];
         let currentBucket = 'home';
+        let currentUser = null;
 
-        // Load tasks from localStorage on page load
-        window.onload = function() {
-            const savedTasks = localStorage.getItem('tasks');
+        // Check authentication on page load
+        window.onload = async function() {
             const savedTheme = localStorage.getItem('theme') || 'ocean';
             const savedBucket = localStorage.getItem('currentBucket') || 'home';
 
-            if (savedTasks) {
-                tasks = JSON.parse(savedTasks);
-                renderTasks();
-            }
-
+            changeTheme(savedTheme);
             currentBucket = savedBucket;
             updateActiveBucketTab(savedBucket);
-            changeTheme(savedTheme);
+
+            // Check if user is logged in
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                currentUser = session.user;
+                showApp();
+                await loadTasksFromSupabase();
+            } else {
+                showAuth();
+            }
         };
 
-        function addTask() {
+        // Auth functions
+        function showAuth() {
+            document.getElementById('authContainer').classList.remove('hidden');
+            document.getElementById('appContainer').classList.add('hidden');
+        }
+
+        function showApp() {
+            document.getElementById('authContainer').classList.add('hidden');
+            document.getElementById('appContainer').classList.remove('hidden');
+
+            if (currentUser) {
+                document.getElementById('userInfo').innerHTML = `
+                    <span>${currentUser.email}</span>
+                    <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                `;
+            }
+        }
+
+        function showLogin() {
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('signupForm').classList.add('hidden');
+            document.getElementById('loginError').textContent = '';
+            document.getElementById('signupError').textContent = '';
+        }
+
+        function showSignup() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('signupForm').classList.remove('hidden');
+            document.getElementById('loginError').textContent = '';
+            document.getElementById('signupError').textContent = '';
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password
+            });
+
+            if (error) {
+                document.getElementById('loginError').textContent = error.message;
+            } else {
+                currentUser = data.user;
+                showApp();
+                await loadTasksFromSupabase();
+            }
+        }
+
+        async function handleSignup(event) {
+            event.preventDefault();
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password
+            });
+
+            if (error) {
+                document.getElementById('signupError').textContent = error.message;
+            } else {
+                alert('Sign up successful! Please check your email to confirm your account, then log in.');
+                showLogin();
+            }
+        }
+
+        async function handleLogout() {
+            await supabase.auth.signOut();
+            currentUser = null;
+            tasks = [];
+            renderTasks();
+            showAuth();
+        }
+
+        async function addTask() {
             const input = document.getElementById('taskInput');
             const taskText = input.value.trim();
 
@@ -596,31 +869,75 @@
                 return;
             }
 
-            tasks.push({
-                id: Date.now(),
+            const newTask = {
                 text: taskText,
                 completed: false,
-                bucket: currentBucket
-            });
+                bucket: currentBucket,
+                user_id: currentUser.id,
+                created_at: new Date().toISOString()
+            };
 
-            input.value = '';
-            saveTasks();
-            renderTasks();
-        }
+            const { data, error } = await supabase
+                .from('todos')
+                .insert([newTask])
+                .select();
 
-        function toggleTask(id) {
-            const task = tasks.find(task => task.id === id);
-            if (task) {
-                task.completed = !task.completed;
-                saveTasks();
+            if (error) {
+                console.error('Error adding task:', error);
+                alert('Failed to add task');
+            } else {
+                tasks.push(data[0]);
+                input.value = '';
                 renderTasks();
             }
         }
 
-        function deleteTask(id) {
-            tasks = tasks.filter(task => task.id !== id);
-            saveTasks();
-            renderTasks();
+        async function toggleTask(id) {
+            const task = tasks.find(task => task.id === id);
+            if (task) {
+                task.completed = !task.completed;
+
+                const { error } = await supabase
+                    .from('todos')
+                    .update({ completed: task.completed })
+                    .eq('id', id);
+
+                if (error) {
+                    console.error('Error updating task:', error);
+                    task.completed = !task.completed;
+                }
+                renderTasks();
+            }
+        }
+
+        async function deleteTask(id) {
+            const { error } = await supabase
+                .from('todos')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                console.error('Error deleting task:', error);
+                alert('Failed to delete task');
+            } else {
+                tasks = tasks.filter(task => task.id !== id);
+                renderTasks();
+            }
+        }
+
+        async function loadTasksFromSupabase() {
+            const { data, error } = await supabase
+                .from('todos')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                console.error('Error loading tasks:', error);
+            } else {
+                tasks = data || [];
+                renderTasks();
+            }
         }
 
         function renderTasks() {
@@ -638,10 +955,10 @@
                 <li class="task-item" draggable="true" data-id="${task.id}">
                     <div class="task-content">
                         <span class="drag-handle">⋮⋮</span>
-                        <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask(${task.id})">
+                        <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask('${task.id}')">
                         <span class="task-text ${task.completed ? 'completed' : ''}">${task.text}</span>
                     </div>
-                    <button class="delete-btn" onclick="deleteTask(${task.id})">Delete</button>
+                    <button class="delete-btn" onclick="deleteTask('${task.id}')">Delete</button>
                 </li>
             `).join('');
 
@@ -649,8 +966,19 @@
             addDragListeners();
         }
 
-        function saveTasks() {
-            localStorage.setItem('tasks', JSON.stringify(tasks));
+        async function saveTaskOrder() {
+            // Update the order of tasks in the database
+            const updates = tasks.map((task, index) => ({
+                id: task.id,
+                order_index: index
+            }));
+
+            for (const update of updates) {
+                await supabase
+                    .from('todos')
+                    .update({ order_index: update.order_index })
+                    .eq('id', update.id);
+            }
         }
 
         let draggedElement = null;
@@ -670,7 +998,7 @@
 
         function handleDragStart(e) {
             draggedElement = this;
-            draggedTaskId = parseInt(this.dataset.id);
+            draggedTaskId = this.dataset.id;
             this.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/html', this.innerHTML);
@@ -692,13 +1020,13 @@
             this.classList.remove('drag-over');
         }
 
-        function handleDrop(e) {
+        async function handleDrop(e) {
             if (e.stopPropagation) {
                 e.stopPropagation();
             }
 
             if (draggedElement !== this) {
-                const dropTaskId = parseInt(this.dataset.id);
+                const dropTaskId = this.dataset.id;
 
                 // Find the indices in the main tasks array
                 const draggedIndex = tasks.findIndex(t => t.id === draggedTaskId);
@@ -709,7 +1037,7 @@
                 tasks.splice(draggedIndex, 1);
                 tasks.splice(dropIndex, 0, draggedTask);
 
-                saveTasks();
+                await saveTaskOrder();
                 renderTasks();
             }
 
