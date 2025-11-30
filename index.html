@@ -288,6 +288,11 @@
             animation: slideIn 0.3s ease;
             cursor: move;
             position: relative;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            touch-action: none;
         }
 
         .task-item.dragging {
@@ -352,6 +357,11 @@
             flex: 1;
             font-size: 1em;
             transition: all 0.3s ease;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            pointer-events: none;
         }
 
         .task-text.completed {
@@ -1064,6 +1074,10 @@
                 item.addEventListener('dragstart', handleDragStart);
                 item.addEventListener('dragover', handleDragOver);
                 item.addEventListener('dragend', handleDragEnd);
+
+                // Prevent text selection and context menu on mobile
+                item.addEventListener('selectstart', (e) => e.preventDefault());
+                item.addEventListener('contextmenu', (e) => e.preventDefault());
             });
         }
 
@@ -1073,7 +1087,11 @@
             this.classList.add('dragging');
 
             e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/html', this.innerHTML);
+            // Use a custom data type to prevent browser from treating this as text
+            e.dataTransfer.setData('application/x-todo-item', draggedTaskId);
+
+            // Prevent text selection during drag
+            e.dataTransfer.setDragImage(this, 0, 0);
         }
 
         function handleDragOver(e) {
