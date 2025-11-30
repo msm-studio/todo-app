@@ -323,10 +323,6 @@
             transform: translateX(5px);
         }
 
-        .task-item.just-dropped {
-            transform: none !important;
-        }
-
         .drag-handle {
             cursor: move;
             font-size: 1.2em;
@@ -1131,20 +1127,6 @@
         }
 
         async function handleDragEnd(e) {
-            draggedElement.classList.remove('dragging');
-            draggedElement.classList.add('just-dropped');
-
-            // Clear any inline styles that might have been applied
-            draggedElement.style.transform = '';
-            draggedElement.style.transition = '';
-
-            // Remove just-dropped class after a short delay
-            setTimeout(() => {
-                if (draggedElement) {
-                    draggedElement.classList.remove('just-dropped');
-                }
-            }, 100);
-
             // Update the tasks array to match the new DOM order
             const tasksList = document.getElementById('tasksList');
             const taskItems = [...tasksList.querySelectorAll('.task-item')];
@@ -1160,6 +1142,9 @@
             tasks = [...newTasksOrder, ...otherBucketTasks];
 
             await saveTaskOrder();
+
+            // Re-render to clean up any lingering styles/classes
+            renderTasks();
 
             draggedElement = null;
             draggedTaskId = null;
