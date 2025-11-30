@@ -882,7 +882,7 @@
             };
 
             const { data, error } = await supabase
-                .from('tasks')
+                .from('todos')
                 .insert([newTask])
                 .select();
 
@@ -902,7 +902,7 @@
                 task.completed = !task.completed;
 
                 const { error } = await supabase
-                    .from('tasks')
+                    .from('todos')
                     .update({ completed: task.completed })
                     .eq('id', id);
 
@@ -916,7 +916,7 @@
 
         async function deleteTask(id) {
             const { error } = await supabase
-                .from('tasks')
+                .from('todos')
                 .delete()
                 .eq('id', id);
 
@@ -931,7 +931,7 @@
 
         async function loadTasksFromSupabase() {
             const { data, error } = await supabase
-                .from('tasks')
+                .from('todos')
                 .select('*')
                 .eq('user_id', currentUser.id)
                 .order('order_index', { ascending: true });
@@ -979,7 +979,7 @@
 
             for (const update of updates) {
                 await supabase
-                    .from('tasks')
+                    .from('todos')
                     .update({ order_index: update.order_index })
                     .eq('id', update.id);
             }
