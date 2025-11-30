@@ -290,13 +290,70 @@
         }
 
         .task-item.dragging {
-            opacity: 0.5;
-            transform: scale(0.98);
+            opacity: 0.4;
+            transform: rotate(2deg) scale(1.02);
+            cursor: grabbing;
+            z-index: 1000;
         }
 
-        .task-item.drag-over {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        .task-item.drag-over-top {
+            border-top: 3px solid;
+            padding-top: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .light .task-item.drag-over-top {
+            border-top-color: #667eea;
+        }
+
+        .dark .task-item.drag-over-top {
+            border-top-color: #1abc9c;
+        }
+
+        .ocean .task-item.drag-over-top {
+            border-top-color: #0083B0;
+        }
+
+        .task-item.drag-over-bottom {
+            border-bottom: 3px solid;
+            padding-bottom: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .light .task-item.drag-over-bottom {
+            border-bottom-color: #667eea;
+        }
+
+        .dark .task-item.drag-over-bottom {
+            border-bottom-color: #1abc9c;
+        }
+
+        .ocean .task-item.drag-over-bottom {
+            border-bottom-color: #0083B0;
+        }
+
+        .task-placeholder {
+            height: 60px;
+            border: 2px dashed;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            opacity: 0.5;
+            transition: all 0.2s ease;
+        }
+
+        .light .task-placeholder {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .dark .task-placeholder {
+            border-color: #1abc9c;
+            background: rgba(26, 188, 156, 0.1);
+        }
+
+        .ocean .task-placeholder {
+            border-color: #0083B0;
+            background: rgba(0, 131, 176, 0.1);
         }
 
         @keyframes slideIn {
@@ -1052,6 +1109,7 @@
 
         let draggedElement = null;
         let draggedTaskId = null;
+        let placeholder = null;
 
         function addDragListeners() {
             const taskItems = document.querySelectorAll('.task-item');
@@ -1059,56 +1117,104 @@
             taskItems.forEach(item => {
                 item.addEventListener('dragstart', handleDragStart);
                 item.addEventListener('dragover', handleDragOver);
+                item.addEventListener('dragenter', handleDragEnter);
+                item.addEventListener('dragleave', handleDragLeave);
                 item.addEventListener('drop', handleDrop);
                 item.addEventListener('dragend', handleDragEnd);
-                item.addEventListener('dragleave', handleDragLeave);
             });
         }
 
         function handleDragStart(e) {
             draggedElement = this;
             draggedTaskId = this.dataset.id;
-            this.classList.add('dragging');
+
+            setTimeout(() => {
+                this.classList.add('dragging');
+            }, 0);
+
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+
+        function handleDragEnter(e) {
+            if (this === draggedElement) return;
+
+            e.preventDefault();
         }
 
         function handleDragOver(e) {
             if (e.preventDefault) {
                 e.preventDefault();
             }
+
             e.dataTransfer.dropEffect = 'move';
 
-            if (this !== draggedElement) {
-                this.classList.add('drag-over');
+            if (this === draggedElement) return false;
+
+            // Get all task items
+            const allItems = [...document.querySelectorAll('.task-item')];
+            const draggedIndex = allItems.indexOf(draggedElement);
+            const targetIndex = allItems.indexOf(this);
+
+            // Remove previous drag-over classes
+            allItems.forEach(item => {
+                item.classList.remove('drag-over-top', 'drag-over-bottom');
+            });
+
+            // Determine if we should insert above or below
+            if (draggedIndex < targetIndex) {
+                // Dragging down - show indicator below target
+                this.classList.add('drag-over-bottom');
+            } else {
+                // Dragging up - show indicator above target
+                this.classList.add('drag-over-top');
             }
+
             return false;
         }
 
         function handleDragLeave(e) {
-            this.classList.remove('drag-over');
+            // Only remove if we're actually leaving the element
+            if (e.target === this) {
+                this.classList.remove('drag-over-top', 'drag-over-bottom');
+            }
         }
 
         async function handleDrop(e) {
             if (e.stopPropagation) {
                 e.stopPropagation();
             }
+            e.preventDefault();
 
-            if (draggedElement !== this) {
-                const dropTaskId = this.dataset.id;
+            if (draggedElement === this) return false;
 
-                // Find the indices in the main tasks array
-                const draggedIndex = tasks.findIndex(t => t.id === draggedTaskId);
-                const dropIndex = tasks.findIndex(t => t.id === dropTaskId);
+            const dropTaskId = this.dataset.id;
+            const allItems = [...document.querySelectorAll('.task-item')];
+            const draggedIndex = allItems.indexOf(draggedElement);
+            const targetIndex = allItems.indexOf(this);
 
-                // Reorder the tasks array
-                const draggedTask = tasks[draggedIndex];
-                tasks.splice(draggedIndex, 1);
-                tasks.splice(dropIndex, 0, draggedTask);
+            // Find the indices in the main tasks array
+            const draggedTaskIndex = tasks.findIndex(t => t.id === draggedTaskId);
+            const dropTaskIndex = tasks.findIndex(t => t.id === dropTaskId);
 
-                await saveTaskOrder();
-                renderTasks();
+            // Reorder the tasks array
+            const draggedTask = tasks[draggedTaskIndex];
+            tasks.splice(draggedTaskIndex, 1);
+
+            // Insert based on drag direction
+            let insertIndex = dropTaskIndex;
+            if (draggedIndex < targetIndex) {
+                // Dragging down - insert after target
+                insertIndex = dropTaskIndex;
+            } else {
+                // Dragging up - insert before target
+                insertIndex = dropTaskIndex;
             }
+
+            tasks.splice(insertIndex, 0, draggedTask);
+
+            await saveTaskOrder();
+            renderTasks();
 
             return false;
         }
@@ -1116,9 +1222,11 @@
         function handleDragEnd(e) {
             const items = document.querySelectorAll('.task-item');
             items.forEach(item => {
-                item.classList.remove('dragging');
-                item.classList.remove('drag-over');
+                item.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom');
             });
+
+            draggedElement = null;
+            draggedTaskId = null;
         }
 
         function switchBucket(bucket) {
