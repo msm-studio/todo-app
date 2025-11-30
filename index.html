@@ -319,7 +319,7 @@
             }
         }
 
-        .task-item:hover:not(.dragging) {
+        body:not(.is-dragging) .task-item:hover {
             transform: translateX(5px);
         }
 
@@ -1086,6 +1086,9 @@
             draggedTaskId = this.dataset.id;
             this.classList.add('dragging');
 
+            // Disable all hover effects during drag
+            document.body.classList.add('is-dragging');
+
             e.dataTransfer.effectAllowed = 'move';
             // Use a custom data type to prevent browser from treating this as text
             e.dataTransfer.setData('application/x-todo-item', draggedTaskId);
@@ -1142,6 +1145,11 @@
             tasks = [...newTasksOrder, ...otherBucketTasks];
 
             await saveTaskOrder();
+
+            // Re-enable hover effects after a short delay
+            setTimeout(() => {
+                document.body.classList.remove('is-dragging');
+            }, 50);
 
             // Re-render to clean up any lingering styles/classes
             renderTasks();
